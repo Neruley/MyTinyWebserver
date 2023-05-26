@@ -36,6 +36,11 @@ static int pipefd[2];   //全双工管道描述符
 static sort_timer_lst timer_lst;
 static int epollfd = 0;
 
+//数据库登录名 密码 库名  (根据实际修改)
+string user = "root";
+string passwd = "password";
+string databasename = "yourdb";
+
 //信号处理函数
 void sig_handler(int sig)
 {
@@ -103,7 +108,7 @@ int main(int argc, char * argv[])
     //创建数据库连接池
     connection_pool *connpool = connection_pool::getinstance();
     //最大连接数 地址 端口 数据库用户名 密码 数据库名
-    connpool->init(8,"localhost",3306, "root", "password", "yourdb");
+    connpool->init(8,"localhost",3306, user, passwd, databasename);
     //printf("-5\n");
     // 创建线程池
     threadpool<http_conn> *pool = NULL;
