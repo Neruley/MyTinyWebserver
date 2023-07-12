@@ -1,5 +1,10 @@
 #include <map>
 #include <mysql/mysql.h>
+#include <dirent.h>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <iostream>
 #include "http_conn.h"
 #include "log.h"
 
@@ -483,6 +488,69 @@ http_conn::HTTP_CODE http_conn::do_request()
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
         free(m_url_real);
+    }
+    else if (*(p + 1) == '4')
+    {
+        std::vector<std::string> filevec;
+        // 使用 dirent 获取文件目录下的所有文件
+        DIR *dir;   // 目录指针
+        dir = opendir(m_real_file);
+        struct dirent *stdinfo;
+        while (1)
+        {
+            // 获取文件夹中的一个文件
+            stdinfo = readdir(dir);
+            if (stdinfo == nullptr){
+                break;
+            }
+            filevec.push_back(stdinfo->d_name);
+            if(filevec.back() == "." || filevec.back() == ".."){
+                filevec.pop_back();
+            }
+        }
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        char *m_real_file_ = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/filelisttmp.html");
+        strcpy(m_real_file_, m_real_file);
+        //模板html界面
+        strncpy(m_real_file_ + len, m_url_real, strlen(m_url_real));
+        //运行界面
+        strcpy(m_url_real, "/filelist.html");
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        free(m_url_real);
+
+        // 构建页面
+        std::ifstream fileListStream(m_real_file_, std::ios::in);
+        std::string tempLine, filelisthtml;
+        free(m_real_file_);
+        // 读取文件列表的 <!--imline--> 前的语句
+        while(1){
+            getline(fileListStream, tempLine);
+            if(tempLine == "<!--imline-->"){
+                break;
+            }
+            filelisthtml += tempLine + "\n";
+        }
+
+        // 根据如下标签，将将文件夹中的所有文件项添加到返回页面中
+        // <tr><td class="col1">filenamename</td> <td class="col2"><a href="file/filename">下载</a></td> <td class="col3"><a href="delete/filename">删除</a></td></tr>
+        for(const auto &filename : filevec){
+            filelisthtml += "            <tr><td class=\"col1\">" + filename +
+                        "</td> <td class=\"col2\"><a href=\"download/" + filename +
+                        "\">下载</a></td> <td class=\"col3\"><a href=\"delete/" + filename +
+                        "\" onclick=\"return confirmDelete();\">删除</a></td></tr>" + "\n";
+        }
+
+        // 将文件列表注释后的语句加入后面
+        while(getline(fileListStream, tempLine)){
+            filelisthtml += tempLine + "\n";
+        }
+        //写回
+        ofstream f(m_real_file,ios::out);
+        if(!f.eof()) {
+            f << filelisthtml;
+        } 
+        f.close();
     }
     else if (*(p + 1) == '5')
     {
